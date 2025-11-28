@@ -24,7 +24,7 @@ export const CONFIG = {
  */
 export const ENDPOINTS = {
   // Health Services endpoints
-  HEALTH_SERVICES: "/health-services",
+  HEALTH_SERVICES: "/health_services",
 
   // Vendors and Switches endpoints
   VENDORS: "/vendors",
