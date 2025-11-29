@@ -6,25 +6,35 @@
  * @author Ishilia Gilcedes V. Labrador (2242125)
  */
 
-var wellbeingApi = new window.FetchWrapper(window.CONFIG.WELLBEING_API_BASE_URL)
-var hw1Api = new window.FetchWrapper(window.CONFIG.HW1_API_BASE_URL)
+console.log("[YOSHO] app.js loading...");
 
-var healthServicesData = []
-var vendorSwitchesData = []
+// Initialize FetchWrapper instances for each API
+var wellbeingApi = new window.FetchWrapper(
+  window.CONFIG.WELLBEING_API_BASE_URL
+);
+var hw1Api = new window.FetchWrapper(window.CONFIG.HW1_API_BASE_URL);
 
+// Store fetched data for client-side pagination
+var healthServicesData = [];
+var vendorSwitchesData = [];
+
+// Initialize pagination managers
 var healthServicesPagination = new window.PaginationManager({
   pageSize: window.CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
   onPageChange: () => {
-    renderHealthServicesTable()
+    renderHealthServicesTable();
   },
-})
+});
 
 var vendorSwitchesPagination = new window.PaginationManager({
   pageSize: window.CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
   onPageChange: () => {
-    renderVendorSwitchesTable()
+    renderVendorSwitchesTable();
   },
-})
+});
+
+// Declare bootstrap variable
+var bootstrap = window.bootstrap;
 
 // ============================================================================
 // INITIALIZATION
@@ -34,43 +44,56 @@ var vendorSwitchesPagination = new window.PaginationManager({
  * Initialize the application when DOM is loaded
  */
 document.addEventListener("DOMContentLoaded", () => {
-  initializeNavigation()
-  initializeHealthServicesHandlers()
-  initializeVendorSwitchesHandlers()
-  initializeSportsDbHandlers()
+  console.log("[YOI] Initializing application...");
+
+  var modals = document.querySelectorAll(".modal");
+  modals.forEach((modal) => {
+    modal.addEventListener("hide.bs.modal", () => {
+      // Remove focus from any element inside the modal before hiding
+      if (document.activeElement && modal.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
+    });
+  });
+
+  // Initialize navigation
+  initializeNavigation();
+  initializeHealthServicesHandlers();
+  initializeVendorSwitchesHandlers();
+  initializeSportsDbHandlers();
 
   // Load initial data for health services
-  fetchHealthServices()
-})
+  fetchHealthServices();
+});
 
 /**
  * Initializes navigation between sections
  */
 function initializeNavigation() {
-  var navLinks = document.querySelectorAll("[data-section]")
-  var sections = document.querySelectorAll(".content-section")
+  var navLinks = document.querySelectorAll("[data-section]");
+  var sections = document.querySelectorAll(".content-section");
 
-  navLinks.forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault()
-      var targetSection = link.dataset.section
+  for (var i = 0; i < navLinks.length; i++) {
+    navLinks[i].addEventListener("click", function (e) {
+      e.preventDefault();
+      var targetSection = this.getAttribute("data-section");
 
       // Update active nav link
-      navLinks.forEach((nav) => {
-        nav.classList.remove("active")
-      })
-      link.classList.add("active")
+      for (var j = 0; j < navLinks.length; j++) {
+        navLinks[j].classList.remove("active");
+      }
+      this.classList.add("active");
 
       // Show target section, hide others
-      sections.forEach((section) => {
-        if (section.id === targetSection + "-section") {
-          section.classList.remove("d-none")
+      for (var k = 0; k < sections.length; k++) {
+        if (sections[k].id === targetSection + "-section") {
+          sections[k].classList.remove("d-none");
         } else {
-          section.classList.add("d-none")
+          sections[k].classList.add("d-none");
         }
-      })
-    })
-  })
+      }
+    });
+  }
 }
 
 // ============================================================================
@@ -82,39 +105,39 @@ function initializeNavigation() {
  */
 function initializeHealthServicesHandlers() {
   // Filter form submission
-  var filterForm = document.getElementById("healthServicesFilterForm")
+  var filterForm = document.getElementById("healthServicesFilterForm");
   if (filterForm) {
     filterForm.addEventListener("submit", (e) => {
-      e.preventDefault()
-      fetchHealthServices()
-    })
+      e.preventDefault();
+      fetchHealthServices();
+    });
   }
 
   // Clear filters button
-  var clearBtn = document.getElementById("clearFiltersBtn")
+  var clearBtn = document.getElementById("clearFiltersBtn");
   if (clearBtn) {
     clearBtn.addEventListener("click", () => {
-      document.getElementById("filterServiceType").value = ""
-      document.getElementById("filterIsFree").value = ""
-      document.getElementById("filterHospitalName").value = ""
-      fetchHealthServices()
-    })
+      document.getElementById("filterServiceType").value = "";
+      document.getElementById("filterIsFree").value = "";
+      document.getElementById("filterHospitalName").value = "";
+      fetchHealthServices();
+    });
   }
 
   // Create button
-  var submitCreateBtn = document.getElementById("submitCreateBtn")
+  var submitCreateBtn = document.getElementById("submitCreateBtn");
   if (submitCreateBtn) {
     submitCreateBtn.addEventListener("click", () => {
-      createHealthService()
-    })
+      createHealthService();
+    });
   }
 
   // Delete confirmation button
-  var confirmDeleteBtn = document.getElementById("confirmDeleteBtn")
+  var confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
   if (confirmDeleteBtn) {
     confirmDeleteBtn.addEventListener("click", () => {
-      deleteHealthService()
-    })
+      deleteHealthService();
+    });
   }
 }
 
@@ -123,8 +146,9 @@ function initializeHealthServicesHandlers() {
  * @async
  */
 async function fetchHealthServices() {
-  window.showLoading("healthServicesTableBody", "Loading health services...")
-  window.hideAlert("healthServicesAlert")
+  console.log("[YOI] Fetching health services...");
+  window.showLoading("healthServicesTableBody", "Loading health services...");
+  window.hideAlert("healthServicesAlert");
 
   try {
     // Get filter values
@@ -132,37 +156,53 @@ async function fetchHealthServices() {
       service_type: document.getElementById("filterServiceType").value,
       is_free: document.getElementById("filterIsFree").value,
       hospital_name: document.getElementById("filterHospitalName").value,
-    })
+    });
 
     // Build query string
-    var endpoint = window.ENDPOINTS.HEALTH_SERVICES
-    var queryParams = new URLSearchParams(filters).toString()
+    var endpoint = window.ENDPOINTS.HEALTH_SERVICES;
+    var queryParams = new URLSearchParams(filters).toString();
     if (queryParams) {
-      endpoint += "?" + queryParams
+      endpoint += "?" + queryParams;
     }
+
+    console.log("[YOI] Fetching from endpoint:", endpoint);
 
     // Fetch data
-    var response = await wellbeingApi.get(endpoint)
+    var response = await wellbeingApi.get(endpoint);
+    console.log("[YOI] Response received:", response);
 
     // Handle response - check for data in health_services or data property
-    healthServicesData = response.health_services || response.data || response || []
+    healthServicesData =
+      response.health_services || response.data || response || [];
 
     // Set pagination
-    healthServicesPagination.setTotalItems(healthServicesData.length)
-    healthServicesPagination.currentPage = 1
+    healthServicesPagination.setTotalItems(healthServicesData.length);
+    healthServicesPagination.currentPage = 1;
 
     // Render table
-    renderHealthServicesTable()
+    renderHealthServicesTable();
   } catch (error) {
-    console.error("Error fetching health services:", error)
+    console.error("[YOSHO] Error fetching health services:", error);
     if (error instanceof window.CustomError) {
-      window.showAlert("healthServicesAlert", "Error " + error.status + ": " + error.message, "danger")
+      window.showAlert(
+        "healthServicesAlert",
+        "Error " + error.status + ": " + error.message,
+        "danger"
+      );
     } else if (error instanceof window.NetworkError) {
-      window.showAlert("healthServicesAlert", error.message, "danger")
+      window.showAlert("healthServicesAlert", error.message, "danger");
     } else {
-      window.showAlert("healthServicesAlert", "An unexpected error occurred while fetching health services.", "danger")
+      window.showAlert(
+        "healthServicesAlert",
+        "An unexpected error occurred while fetching health services.",
+        "danger"
+      );
     }
-    window.showEmptyState("healthServicesTableBody", "Failed to load health services.", 6)
+    window.showEmptyState(
+      "healthServicesTableBody",
+      "Failed to load health services.",
+      6
+    );
   }
 }
 
@@ -170,21 +210,26 @@ async function fetchHealthServices() {
  * Renders the health services table with current page data
  */
 function renderHealthServicesTable() {
-  var tableBody = document.getElementById("healthServicesTableBody")
+  var tableBody = document.getElementById("healthServicesTableBody");
 
   if (!healthServicesData || healthServicesData.length === 0) {
-    window.showEmptyState("healthServicesTableBody", "No health services found.", 6)
-    window.clearContainer("healthServicesPagination")
-    return
+    window.showEmptyState(
+      "healthServicesTableBody",
+      "No health services found.",
+      6
+    );
+    window.clearContainer("healthServicesPagination");
+    return;
   }
 
   // Get current page data
-  var pageData = healthServicesPagination.getPageData(healthServicesData)
+  var pageData = healthServicesPagination.getPageData(healthServicesData);
 
-  var html = ""
-  pageData.forEach((service) => {
-    var isFree = service.is_free == 1 || service.is_free === true
-    var serviceId = service.Health_ServicesID || service.id
+  var html = "";
+  for (var i = 0; i < pageData.length; i++) {
+    var service = pageData[i];
+    var isFree = service.is_free == 1 || service.is_free === true;
+    var serviceId = service.Health_ServicesID || service.id;
     html +=
       "<tr>" +
       "<td>" +
@@ -213,13 +258,13 @@ function renderHealthServicesTable() {
       serviceId +
       ')" title="Delete">' +
       '<i class="bi bi-trash"></i></button>' +
-      "</td></tr>"
-  })
+      "</td></tr>";
+  }
 
-  tableBody.innerHTML = html
+  tableBody.innerHTML = html;
 
   // Render pagination
-  healthServicesPagination.render("healthServicesPagination")
+  healthServicesPagination.render("healthServicesPagination");
 }
 
 /**
@@ -227,7 +272,7 @@ function renderHealthServicesTable() {
  * @async
  */
 async function createHealthService() {
-  window.hideAlert("createModalAlert")
+  window.hideAlert("createModalAlert");
 
   // Get form data
   var data = {
@@ -235,39 +280,56 @@ async function createHealthService() {
     service_type: document.getElementById("createServiceType").value,
     is_free: document.getElementById("createIsFree").value,
     requirements: document.getElementById("createRequirements").value,
-  }
+  };
 
   // Validate
-  var validation = window.validateHealthService(data)
+  var validation = window.validateHealthService(data);
   if (!validation.isValid) {
-    window.showErrorList("createModalAlert", validation.errors)
-    return
+    window.showErrorList("createModalAlert", validation.errors);
+    return;
   }
 
   try {
     // Send POST request
-    var response = await wellbeingApi.post(window.ENDPOINTS.HEALTH_SERVICES, data)
+    var response = await wellbeingApi.post(
+      window.ENDPOINTS.HEALTH_SERVICES,
+      data
+    );
 
     // Close modal
-    var modal = window.bootstrap.Modal.getInstance(document.getElementById("createHealthServiceModal"))
-    modal.hide()
+    var modal = bootstrap.Modal.getInstance(
+      document.getElementById("createHealthServiceModal")
+    );
+    modal.hide();
 
     // Reset form
-    document.getElementById("createHealthServiceForm").reset()
+    document.getElementById("createHealthServiceForm").reset();
 
     // Show success message
-    window.showAlert("healthServicesAlert", "Health service created successfully!", "success")
+    window.showAlert(
+      "healthServicesAlert",
+      "Health service created successfully!",
+      "success"
+    );
 
     // Refresh table
-    await fetchHealthServices()
+    await fetchHealthServices();
   } catch (error) {
-    console.error("Error creating health service:", error)
+    console.error("[YOI] Error creating health service:", error);
     if (error instanceof window.CustomError) {
-      window.showAlert("createModalAlert", "Error " + error.status + ": " + error.message, "danger")
+      window.showAlert(
+        "createModalAlert",
+        "Error " + error.status + ": " + error.message,
+        "danger"
+      );
     } else if (error instanceof window.NetworkError) {
-      window.showAlert("createModalAlert", error.message, "danger")
+      window.showAlert("createModalAlert", error.message, "danger");
     } else {
-      window.showAlert("createModalAlert", "An unexpected error occurred.", "danger")
+      window.showAlert(
+        "createModalAlert",
+        "An unexpected error occurred.",
+        "danger"
+      );
     }
   }
 }
@@ -277,9 +339,11 @@ async function createHealthService() {
  * @param {number} id - The ID of the health service to delete
  */
 function confirmDelete(id) {
-  document.getElementById("deleteServiceId").value = id
-  var modal = new window.bootstrap.Modal(document.getElementById("deleteConfirmModal"))
-  modal.show()
+  document.getElementById("deleteServiceId").value = id;
+  var modal = new bootstrap.Modal(
+    document.getElementById("deleteConfirmModal")
+  );
+  modal.show();
 }
 
 /**
@@ -287,41 +351,57 @@ function confirmDelete(id) {
  * @async
  */
 async function deleteHealthService() {
-  var id = document.getElementById("deleteServiceId").value
+  var id = document.getElementById("deleteServiceId").value;
 
   // Validate ID
-  var validation = window.validateId(id, "Service ID")
+  var validation = window.validateId(id, "Service ID");
   if (!validation.isValid) {
-    window.showAlert("healthServicesAlert", validation.errors[0], "danger")
-    return
+    window.showAlert("healthServicesAlert", validation.errors[0], "danger");
+    return;
   }
 
   try {
     // Send DELETE request
-    await wellbeingApi.delete(window.ENDPOINTS.HEALTH_SERVICES + "/" + id)
+    await wellbeingApi.delete(window.ENDPOINTS.HEALTH_SERVICES + "/" + id);
 
     // Close modal
-    var modal = window.bootstrap.Modal.getInstance(document.getElementById("deleteConfirmModal"))
-    modal.hide()
+    var modal = bootstrap.Modal.getInstance(
+      document.getElementById("deleteConfirmModal")
+    );
+    modal.hide();
 
     // Show success message
-    window.showAlert("healthServicesAlert", "Health service deleted successfully!", "success")
+    window.showAlert(
+      "healthServicesAlert",
+      "Health service deleted successfully!",
+      "success"
+    );
 
     // Refresh table
-    await fetchHealthServices()
+    await fetchHealthServices();
   } catch (error) {
-    console.error("Error deleting health service:", error)
+    console.error("[YOI] Error deleting health service:", error);
 
     // Close modal first
-    var modalInstance = window.bootstrap.Modal.getInstance(document.getElementById("deleteConfirmModal"))
-    modalInstance.hide()
+    var modalInstance = bootstrap.Modal.getInstance(
+      document.getElementById("deleteConfirmModal")
+    );
+    modalInstance.hide();
 
     if (error instanceof window.CustomError) {
-      window.showAlert("healthServicesAlert", "Error " + error.status + ": " + error.message, "danger")
+      window.showAlert(
+        "healthServicesAlert",
+        "Error " + error.status + ": " + error.message,
+        "danger"
+      );
     } else if (error instanceof window.NetworkError) {
-      window.showAlert("healthServicesAlert", error.message, "danger")
+      window.showAlert("healthServicesAlert", error.message, "danger");
     } else {
-      window.showAlert("healthServicesAlert", "An unexpected error occurred while deleting.", "danger")
+      window.showAlert(
+        "healthServicesAlert",
+        "An unexpected error occurred while deleting.",
+        "danger"
+      );
     }
   }
 }
@@ -333,11 +413,13 @@ async function deleteHealthService() {
  */
 async function viewHealthService(id) {
   try {
-    var response = await wellbeingApi.get(window.ENDPOINTS.HEALTH_SERVICES + "/" + id)
-    var service = response.health_service || response.data || response
+    var response = await wellbeingApi.get(
+      window.ENDPOINTS.HEALTH_SERVICES + "/" + id
+    );
+    var service = response.health_service || response.data || response;
 
-    var isFree = service.is_free == 1 || service.is_free === true
-    var modalBody = document.getElementById("viewHealthServiceBody")
+    var isFree = service.is_free == 1 || service.is_free === true;
+    var modalBody = document.getElementById("viewHealthServiceBody");
     modalBody.innerHTML =
       '<div class="row">' +
       '<div class="col-md-6 mb-3"><strong>ID:</strong><br>' +
@@ -346,12 +428,10 @@ async function viewHealthService(id) {
       '<div class="col-md-6 mb-3"><strong>Hospital Name:</strong><br>' +
       window.escapeHtml(service.hospital_name) +
       "</div>" +
-      '<div class="col-md-6 mb-3"><strong>Service Type:</strong><br>' +
-      '<span class="badge bg-secondary">' +
+      '<div class="col-md-6 mb-3"><strong>Service Type:</strong><br><span class="badge bg-secondary">' +
       window.escapeHtml(service.service_type) +
       "</span></div>" +
-      '<div class="col-md-6 mb-3"><strong>Cost:</strong><br>' +
-      '<span class="badge ' +
+      '<div class="col-md-6 mb-3"><strong>Cost:</strong><br><span class="badge ' +
       (isFree ? "bg-success" : "bg-warning text-dark") +
       '">' +
       (isFree ? "Free" : "Paid") +
@@ -359,16 +439,26 @@ async function viewHealthService(id) {
       '<div class="col-12 mb-3"><strong>Requirements:</strong><br>' +
       window.escapeHtml(service.requirements || "None specified") +
       "</div>" +
-      "</div>"
+      "</div>";
 
-    var modal = new window.bootstrap.Modal(document.getElementById("viewHealthServiceModal"))
-    modal.show()
+    var modal = new bootstrap.Modal(
+      document.getElementById("viewHealthServiceModal")
+    );
+    modal.show();
   } catch (error) {
-    console.error("Error viewing health service:", error)
+    console.error("[YOI] Error viewing health service:", error);
     if (error instanceof window.CustomError) {
-      window.showAlert("healthServicesAlert", "Error " + error.status + ": " + error.message, "danger")
+      window.showAlert(
+        "healthServicesAlert",
+        "Error " + error.status + ": " + error.message,
+        "danger"
+      );
     } else {
-      window.showAlert("healthServicesAlert", "Failed to load health service details.", "danger")
+      window.showAlert(
+        "healthServicesAlert",
+        "Failed to load health service details.",
+        "danger"
+      );
     }
   }
 }
@@ -381,12 +471,12 @@ async function viewHealthService(id) {
  * Initializes event handlers for Vendor Switches section
  */
 function initializeVendorSwitchesHandlers() {
-  var form = document.getElementById("vendorSwitchesForm")
+  var form = document.getElementById("vendorSwitchesForm");
   if (form) {
     form.addEventListener("submit", (e) => {
-      e.preventDefault()
-      fetchVendorSwitches()
-    })
+      e.preventDefault();
+      fetchVendorSwitches();
+    });
   }
 }
 
@@ -395,48 +485,64 @@ function initializeVendorSwitchesHandlers() {
  * @async
  */
 async function fetchVendorSwitches() {
-  var vendorId = document.getElementById("vendorId").value
-  window.hideAlert("vendorSwitchesAlert")
+  var vendorId = document.getElementById("vendorId").value;
+  window.hideAlert("vendorSwitchesAlert");
 
   // Validate vendor ID
-  var validation = window.validateId(vendorId, "Vendor ID")
+  var validation = window.validateId(vendorId, "Vendor ID");
   if (!validation.isValid) {
-    window.showErrorList("vendorSwitchesAlert", validation.errors)
-    return
+    window.showErrorList("vendorSwitchesAlert", validation.errors);
+    return;
   }
 
-  window.showLoading("vendorSwitchesTableBody", "Loading switches...")
-  window.clearContainer("vendorInfoContainer")
+  window.showLoading("vendorSwitchesTableBody", "Loading switches...");
+  window.clearContainer("vendorInfoContainer");
 
   try {
     // Fetch switches for the vendor - using /vendors/{id}/switches
-    var endpoint = window.ENDPOINTS.VENDORS + "/" + vendorId + window.ENDPOINTS.SWITCHES
-    var response = await hw1Api.get(endpoint)
+    var endpoint =
+      window.ENDPOINTS.VENDORS + "/" + vendorId + window.ENDPOINTS.SWITCHES;
+    console.log("[YOSHO:Fetching vendor switches from:", endpoint);
+
+    var response = await hw1Api.get(endpoint);
+    console.log("[YOI] Vendor switches response:", response);
 
     // Display vendor info if available
     if (response.vendor) {
-      renderVendorInfo(response.vendor)
+      renderVendorInfo(response.vendor);
     }
 
     // Get switches array from response
-    vendorSwitchesData = response.switches || response.data || response || []
+    vendorSwitchesData = response.switches || response.data || response || [];
 
     // Set pagination
-    vendorSwitchesPagination.setTotalItems(vendorSwitchesData.length)
-    vendorSwitchesPagination.currentPage = 1
+    vendorSwitchesPagination.setTotalItems(vendorSwitchesData.length);
+    vendorSwitchesPagination.currentPage = 1;
 
     // Render table
-    renderVendorSwitchesTable()
+    renderVendorSwitchesTable();
   } catch (error) {
-    console.error("Error fetching vendor switches:", error)
+    console.error("[YOI] Error fetching vendor switches:", error);
     if (error instanceof window.CustomError) {
-      window.showAlert("vendorSwitchesAlert", "Error " + error.status + ": " + error.message, "danger")
+      window.showAlert(
+        "vendorSwitchesAlert",
+        "Error " + error.status + ": " + error.message,
+        "danger"
+      );
     } else if (error instanceof window.NetworkError) {
-      window.showAlert("vendorSwitchesAlert", error.message, "danger")
+      window.showAlert("vendorSwitchesAlert", error.message, "danger");
     } else {
-      window.showAlert("vendorSwitchesAlert", "An unexpected error occurred while fetching switches.", "danger")
+      window.showAlert(
+        "vendorSwitchesAlert",
+        "An unexpected error occurred while fetching switches.",
+        "danger"
+      );
     }
-    window.showEmptyState("vendorSwitchesTableBody", "Failed to load switches.", 7)
+    window.showEmptyState(
+      "vendorSwitchesTableBody",
+      "Failed to load switches.",
+      7
+    );
   }
 }
 
@@ -445,7 +551,7 @@ async function fetchVendorSwitches() {
  * @param {Object} vendor - The vendor data
  */
 function renderVendorInfo(vendor) {
-  var container = document.getElementById("vendorInfoContainer")
+  var container = document.getElementById("vendorInfoContainer");
   container.innerHTML =
     '<div class="card bg-light">' +
     '<div class="card-body">' +
@@ -462,26 +568,31 @@ function renderVendorInfo(vendor) {
     "</div>" +
     "</div>" +
     "</div>" +
-    "</div>"
+    "</div>";
 }
 
 /**
  * Renders the vendor switches table with current page data
  */
 function renderVendorSwitchesTable() {
-  var tableBody = document.getElementById("vendorSwitchesTableBody")
+  var tableBody = document.getElementById("vendorSwitchesTableBody");
 
   if (!vendorSwitchesData || vendorSwitchesData.length === 0) {
-    window.showEmptyState("vendorSwitchesTableBody", "No switches found for this vendor.", 7)
-    window.clearContainer("vendorSwitchesPagination")
-    return
+    window.showEmptyState(
+      "vendorSwitchesTableBody",
+      "No switches found for this vendor.",
+      7
+    );
+    window.clearContainer("vendorSwitchesPagination");
+    return;
   }
 
   // Get current page data
-  var pageData = vendorSwitchesPagination.getPageData(vendorSwitchesData)
+  var pageData = vendorSwitchesPagination.getPageData(vendorSwitchesData);
 
-  var html = ""
-  pageData.forEach((switchItem) => {
+  var html = "";
+  for (var i = 0; i < pageData.length; i++) {
+    var switchItem = pageData[i];
     html +=
       "<tr>" +
       "<td>" +
@@ -505,13 +616,13 @@ function renderVendorSwitchesTable() {
       "<td>" +
       window.escapeHtml(switchItem.release_date || "-") +
       "</td>" +
-      "</tr>"
-  })
+      "</tr>";
+  }
 
-  tableBody.innerHTML = html
+  tableBody.innerHTML = html;
 
   // Render pagination
-  vendorSwitchesPagination.render("vendorSwitchesPagination")
+  vendorSwitchesPagination.render("vendorSwitchesPagination");
 }
 
 // ============================================================================
@@ -522,72 +633,88 @@ function renderVendorSwitchesTable() {
  * Initializes event handlers for TheSportsDB section
  */
 function initializeSportsDbHandlers() {
-  var form = document.getElementById("sportsDbForm")
+  var form = document.getElementById("sportsDbForm");
   if (form) {
     form.addEventListener("submit", (e) => {
-      e.preventDefault()
-      fetchSportsDbLeagues()
-    })
+      e.preventDefault();
+      fetchSportsDbLeagues();
+    });
   }
 }
 
 /**
  * Fetches leagues from TheSportsDB API
- * Uses the search_all_leagues.php endpoint with s (sport) and c (country) filters
  * @async
  */
 async function fetchSportsDbLeagues() {
-  var sport = document.getElementById("sportFilter").value
-  var country = document.getElementById("countryFilter").value
-  window.hideAlert("sportsDbAlert")
+  var sport = document.getElementById("sportFilter").value;
+  var country = document.getElementById("countryFilter").value;
+  window.hideAlert("sportsDbAlert");
 
   // Validate - at least one filter required
-  var validation = window.validateSportsDbParams({ sport: sport, country: country })
+  var validation = window.validateSportsDbParams({
+    sport: sport,
+    country: country,
+  });
   if (!validation.isValid) {
-    window.showErrorList("sportsDbAlert", validation.errors)
-    return
+    window.showErrorList("sportsDbAlert", validation.errors);
+    return;
   }
 
-  var resultsContainer = document.getElementById("sportsDbResults")
+  var resultsContainer = document.getElementById("sportsDbResults");
   resultsContainer.innerHTML =
     '<div class="col-12 text-center py-5">' +
     '<div class="spinner-border text-primary" role="status">' +
     '<span class="visually-hidden">Loading...</span>' +
     "</div>" +
     '<p class="mt-2 text-muted">Searching leagues...</p>' +
-    "</div>"
+    "</div>";
 
   try {
     // Build URL with query parameters
-    var params = new URLSearchParams()
-    if (sport) params.append("s", sport)
-    if (country) params.append("c", country)
+    var params = new URLSearchParams();
+    if (sport) params.append("s", sport);
+    if (country) params.append("c", country);
 
-    var url = window.CONFIG.SPORTS_DB_API_URL + "?" + params.toString()
+    var url = window.CONFIG.SPORTS_DB_API_URL + "?" + params.toString();
+    console.log("[YOI] Fetching from TheSportsDB:", url);
 
     // Make direct fetch call for external API
-    var response = await fetch(url)
+    var response = await fetch(url);
 
     if (!response.ok) {
-      throw new window.CustomError(response.status, response.statusText, "Failed to fetch from TheSportsDB")
+      throw new window.CustomError(
+        response.status,
+        response.statusText,
+        "Failed to fetch from TheSportsDB"
+      );
     }
 
-    var data = await response.json()
+    var data = await response.json();
+    console.log("[YOSHO] TheSportsDB response:", data);
 
     // Render results - response contains 'countries' array (which are actually leagues)
-    renderSportsDbResults(data.countries || [])
+    renderSportsDbResults(data.countries || []);
   } catch (error) {
-    console.error("Error fetching from TheSportsDB:", error)
+    console.error("[YOI] Error fetching from TheSportsDB:", error);
     if (error instanceof window.CustomError) {
-      window.showAlert("sportsDbAlert", "Error " + error.status + ": " + error.message, "danger")
+      window.showAlert(
+        "sportsDbAlert",
+        "Error " + error.status + ": " + error.message,
+        "danger"
+      );
     } else {
-      window.showAlert("sportsDbAlert", "Failed to fetch leagues from TheSportsDB. Please try again.", "danger")
+      window.showAlert(
+        "sportsDbAlert",
+        "Failed to fetch leagues from TheSportsDB. Please try again.",
+        "danger"
+      );
     }
     resultsContainer.innerHTML =
       '<div class="col-12 text-center py-5 text-muted">' +
       '<i class="bi bi-exclamation-triangle fs-1"></i>' +
       '<p class="mt-2">Failed to load leagues</p>' +
-      "</div>"
+      "</div>";
   }
 }
 
@@ -596,45 +723,52 @@ async function fetchSportsDbLeagues() {
  * @param {Array} leagues - Array of league objects from the API
  */
 function renderSportsDbResults(leagues) {
-  var container = document.getElementById("sportsDbResults")
+  var container = document.getElementById("sportsDbResults");
 
   if (!leagues || leagues.length === 0) {
     container.innerHTML =
       '<div class="col-12 text-center py-5 text-muted">' +
       '<i class="bi bi-search fs-1"></i>' +
       '<p class="mt-2">No leagues found matching your criteria</p>' +
-      "</div>"
-    return
+      "</div>";
+    return;
   }
 
-  var html = ""
-  leagues.forEach((league) => {
+  var html = "";
+  for (var i = 0; i < leagues.length; i++) {
+    var league = leagues[i];
     html +=
       '<div class="col-md-6 col-lg-4">' +
       '<div class="card h-100">' +
       '<div class="card-body">' +
       '<h5 class="card-title">' +
-      window.escapeHtml(league.strLeague) +
+      window.escapeHtml(
+        league.strLeague || league.strLeagueAlternate || "Unknown League"
+      ) +
       "</h5>" +
       '<p class="card-text">' +
       '<span class="badge bg-primary me-1">' +
-      window.escapeHtml(league.strSport) +
+      window.escapeHtml(league.strSport || "-") +
       "</span>" +
       '<span class="badge bg-secondary">' +
-      window.escapeHtml(league.strCountry) +
+      window.escapeHtml(league.strCountry || "-") +
       "</span>" +
       "</p>" +
-      (league.strLeagueAlternate
-        ? '<p class="text-muted small mb-0">Also known as: ' + window.escapeHtml(league.strLeagueAlternate) + "</p>"
-        : "") +
+      "</div>" +
+      '<div class="card-footer bg-transparent">' +
+      '<small class="text-muted">ID: ' +
+      window.escapeHtml(league.idLeague || "-") +
+      "</small>" +
       "</div>" +
       "</div>" +
-      "</div>"
-  })
+      "</div>";
+  }
 
-  container.innerHTML = html
+  container.innerHTML = html;
 }
 
-// Expose functions globally for onclick handlers
-window.viewHealthService = viewHealthService
-window.confirmDelete = confirmDelete
+// Expose functions to global scope for onclick handlers
+window.viewHealthService = viewHealthService;
+window.confirmDelete = confirmDelete;
+
+console.log("[YOI] app.js loaded successfully");
