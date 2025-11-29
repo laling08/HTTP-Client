@@ -9,7 +9,7 @@
  * @class CustomError
  * @extends Error
  */
-export class CustomError extends Error {
+class CustomError extends Error {
   /**
    * Creates a new CustomError instance
    * @param {number} status - HTTP status code
@@ -29,7 +29,7 @@ export class CustomError extends Error {
  * @class NetworkError
  * @extends Error
  */
-export class NetworkError extends Error {
+class NetworkError extends Error {
   /**
    * Creates a new NetworkError instance
    * @param {string} message - Error message
@@ -45,7 +45,7 @@ export class NetworkError extends Error {
  * @class ValidationError
  * @extends Error
  */
-export class ValidationError extends Error {
+class ValidationError extends Error {
   /**
    * Creates a new ValidationError instance
    * @param {string} message - Error message
@@ -62,7 +62,7 @@ export class ValidationError extends Error {
  * FetchWrapper class - Provides a clean interface for making HTTP requests
  * @class FetchWrapper
  */
-export class FetchWrapper {
+class FetchWrapper {
   /**
    * Creates a new FetchWrapper instance
    * @param {string} baseUrl - The base URL for all requests
@@ -215,3 +215,8 @@ export class FetchWrapper {
     })
   }
 }
+
+window.FetchWrapper = FetchWrapper
+window.CustomError = CustomError
+window.NetworkError = NetworkError
+window.ValidationError = ValidationError

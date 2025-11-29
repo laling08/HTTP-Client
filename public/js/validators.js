@@ -2,10 +2,7 @@
  * @fileoverview Validation functions for form inputs
  * @description Provides client-side validation for all form inputs before sending API requests
  * @module Validators
- * @author Ishilia Gilcedes V. Labrador (2242125)
  */
-
-import { ValidationError } from "./fetch-wrapper.js"
 
 /**
  * Validates Health Service form data
@@ -17,8 +14,8 @@ import { ValidationError } from "./fetch-wrapper.js"
  * @param {string} [data.requirements] - Optional requirements for the service
  * @returns {Object} Object with isValid boolean and errors array
  */
-export function validateHealthService(data) {
-  const errors = []
+function validateHealthService(data) {
+  var errors = []
 
   // Validate hospital name
   if (!data.hospital_name || data.hospital_name.trim() === "") {
@@ -30,17 +27,17 @@ export function validateHealthService(data) {
   }
 
   // Validate service type
-  const validServiceTypes = ["child_mental", "prenatal", "adult", "general", "other"]
+  var validServiceTypes = ["child_mental", "prenatal", "adult", "general", "other"]
   if (!data.service_type || data.service_type.trim() === "") {
     errors.push("Service type is required.")
-  } else if (!validServiceTypes.includes(data.service_type)) {
+  } else if (validServiceTypes.indexOf(data.service_type) === -1) {
     errors.push("Invalid service type. Must be one of: child_mental, prenatal, adult, general, other.")
   }
 
   // Validate is_free
   if (data.is_free === "" || data.is_free === undefined || data.is_free === null) {
     errors.push("Cost (free/paid) selection is required.")
-  } else if (![0, 1, "0", "1"].includes(data.is_free)) {
+  } else if ([0, 1, "0", "1"].indexOf(data.is_free) === -1) {
     errors.push("Invalid cost selection.")
   }
 
@@ -62,13 +59,14 @@ export function validateHealthService(data) {
  * @param {string} fieldName - The name of the field for error messages
  * @returns {Object} Object with isValid boolean and errors array
  */
-export function validateId(id, fieldName = "ID") {
-  const errors = []
+function validateId(id, fieldName) {
+  fieldName = fieldName || "ID"
+  var errors = []
 
   if (!id || id === "") {
-    errors.push(`${fieldName} is required.`)
+    errors.push(fieldName + " is required.")
   } else if (isNaN(Number.parseInt(id)) || Number.parseInt(id) <= 0) {
-    errors.push(`${fieldName} must be a positive number.`)
+    errors.push(fieldName + " must be a positive number.")
   }
 
   return {
@@ -85,8 +83,8 @@ export function validateId(id, fieldName = "ID") {
  * @param {string} [params.country] - The country to filter by
  * @returns {Object} Object with isValid boolean and errors array
  */
-export function validateSportsDbParams(params) {
-  const errors = []
+function validateSportsDbParams(params) {
+  var errors = []
 
   // At least one filter should be provided
   if ((!params.sport || params.sport.trim() === "") && (!params.country || params.country.trim() === "")) {
@@ -105,28 +103,22 @@ export function validateSportsDbParams(params) {
  * @param {Object} filters - The filter parameters object
  * @returns {Object} Sanitized filter object with only non-empty values
  */
-export function sanitizeFilters(filters) {
-  const sanitized = {}
+function sanitizeFilters(filters) {
+  var sanitized = {}
 
-  for (const [key, value] of Object.entries(filters)) {
-    if (value !== null && value !== undefined && value !== "") {
-      sanitized[key] = String(value).trim()
+  for (var key in filters) {
+    if (filters.hasOwnProperty(key)) {
+      var value = filters[key]
+      if (value !== null && value !== undefined && value !== "") {
+        sanitized[key] = String(value).trim()
+      }
     }
   }
 
   return sanitized
 }
 
-/**
- * Throws a ValidationError if validation fails
- * Utility function to convert validation results to exceptions
- * @param {Object} validationResult - Result from validation function
- * @param {boolean} validationResult.isValid - Whether validation passed
- * @param {Array<string>} validationResult.errors - Array of error messages
- * @throws {ValidationError} If validation failed
- */
-export function throwIfInvalid(validationResult) {
-  if (!validationResult.isValid) {
-    throw new ValidationError("Validation failed", validationResult.errors)
-  }
-}
+window.validateHealthService = validateHealthService
+window.validateId = validateId
+window.validateSportsDbParams = validateSportsDbParams
+window.sanitizeFilters = sanitizeFilters

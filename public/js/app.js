@@ -6,583 +6,635 @@
  * @author Ishilia Gilcedes V. Labrador (2242125)
  */
 
-import { FetchWrapper, CustomError, NetworkError, ValidationError } from "./fetch-wrapper.js"
-import { CONFIG, ENDPOINTS } from "./config.js"
-import { showAlert, showErrorList, hideAlert, showLoading, escapeHtml, clearContainer } from "./ui-helpers.js"
-import { validateHealthService, validateId, validateSportsDbParams, sanitizeFilters } from "./validators.js"
-import { PaginationManager } from "./pagination.js"
-import * as bootstrap from "bootstrap"
+var wellbeingApi = new window.FetchWrapper(window.CONFIG.WELLBEING_API_BASE_URL)
+var hw1Api = new window.FetchWrapper(window.CONFIG.HW1_API_BASE_URL)
 
-const wellbeingApi = new FetchWrapper(CONFIG.WELLBEING_API_BASE_URL)
-const hw1Api = new FetchWrapper(CONFIG.HW1_API_BASE_URL)
+var healthServicesData = []
+var vendorSwitchesData = []
 
-let healthServicesData = []
-let vendorSwitchesData = []
-
-const healthServicesPagination = new PaginationManager({
-  pageSize: CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
-  onPageChange: () => renderHealthServicesTable(),
+var healthServicesPagination = new window.PaginationManager({
+  pageSize: window.CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
+  onPageChange: () => {
+    renderHealthServicesTable()
+  },
 })
 
-const vendorSwitchesPagination = new PaginationManager({
-  pageSize: CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
-  onPageChange: () => renderVendorSwitchesTable(),
+var vendorSwitchesPagination = new window.PaginationManager({
+  pageSize: window.CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
+  onPageChange: () => {
+    renderVendorSwitchesTable()
+  },
 })
 
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+/**
+ * Initialize the application when DOM is loaded
+ */
 document.addEventListener("DOMContentLoaded", () => {
-  initNavigation()
-  initHealthServicesSection()
-  initVendorSwitchesSection()
-  initSportsDbSection()
+  initializeNavigation()
+  initializeHealthServicesHandlers()
+  initializeVendorSwitchesHandlers()
+  initializeSportsDbHandlers()
 
-  // Load initial data
+  // Load initial data for health services
   fetchHealthServices()
 })
 
-// =============================================
-// NAVIGATION
-// =============================================
-
 /**
  * Initializes navigation between sections
- * Sets up click handlers for nav links to show/hide content sections
  */
-function initNavigation() {
-  const navLinks = document.querySelectorAll("[data-section]")
+function initializeNavigation() {
+  var navLinks = document.querySelectorAll("[data-section]")
+  var sections = document.querySelectorAll(".content-section")
 
   navLinks.forEach((link) => {
     link.addEventListener("click", (e) => {
       e.preventDefault()
-      const sectionId = link.dataset.section
+      var targetSection = link.dataset.section
 
       // Update active nav link
-      navLinks.forEach((l) => l.classList.remove("active"))
+      navLinks.forEach((nav) => {
+        nav.classList.remove("active")
+      })
       link.classList.add("active")
 
-      // Show selected section, hide others
-      document.querySelectorAll(".content-section").forEach((section) => {
-        section.classList.add("d-none")
+      // Show target section, hide others
+      sections.forEach((section) => {
+        if (section.id === targetSection + "-section") {
+          section.classList.remove("d-none")
+        } else {
+          section.classList.add("d-none")
+        }
       })
-      document.getElementById(`${sectionId}-section`).classList.remove("d-none")
-
-      // Hide global alert when switching sections
-      hideAlert("globalAlert")
     })
   })
 }
 
-// =============================================
-// HEALTH SERVICES SECTION
-// =============================================
+// ============================================================================
+// HEALTH SERVICES (Collection Resource)
+// ============================================================================
 
 /**
- * Initializes the Health Services section event listeners
- * Sets up form submissions for filtering, creating, and deleting health services
+ * Initializes event handlers for Health Services section
  */
-function initHealthServicesSection() {
+function initializeHealthServicesHandlers() {
   // Filter form submission
-  document.getElementById("healthServicesFilterForm").addEventListener("submit", async (e) => {
-    e.preventDefault()
-    await fetchHealthServices()
-  })
+  var filterForm = document.getElementById("healthServicesFilterForm")
+  if (filterForm) {
+    filterForm.addEventListener("submit", (e) => {
+      e.preventDefault()
+      fetchHealthServices()
+    })
+  }
 
-  document.getElementById("clearFiltersBtn").addEventListener("click", () => {
-    document.getElementById("filterServiceType").value = ""
-    document.getElementById("filterIsFree").value = ""
-    document.getElementById("filterHospitalName").value = ""
-    fetchHealthServices()
-  })
+  // Clear filters button
+  var clearBtn = document.getElementById("clearFiltersBtn")
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      document.getElementById("filterServiceType").value = ""
+      document.getElementById("filterIsFree").value = ""
+      document.getElementById("filterHospitalName").value = ""
+      fetchHealthServices()
+    })
+  }
 
-  // Create form submission
-  document.getElementById("submitCreateBtn").addEventListener("click", async () => {
-    await createHealthService()
-  })
+  // Create button
+  var submitCreateBtn = document.getElementById("submitCreateBtn")
+  if (submitCreateBtn) {
+    submitCreateBtn.addEventListener("click", () => {
+      createHealthService()
+    })
+  }
 
-  // Delete confirmation
-  document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
-    const serviceId = document.getElementById("deleteServiceId").value
-    await deleteHealthService(serviceId)
-  })
+  // Delete confirmation button
+  var confirmDeleteBtn = document.getElementById("confirmDeleteBtn")
+  if (confirmDeleteBtn) {
+    confirmDeleteBtn.addEventListener("click", () => {
+      deleteHealthService()
+    })
+  }
 }
 
 /**
  * Fetches health services from the API with optional filters
- * Supports filtering by service_type, is_free, and hospital_name
  * @async
  */
 async function fetchHealthServices() {
-  const tableBody = document.getElementById("healthServicesTableBody")
-  showLoading("healthServicesTableBody", "Loading health services...")
-  hideAlert("healthServicesAlert")
+  window.showLoading("healthServicesTableBody", "Loading health services...")
+  window.hideAlert("healthServicesAlert")
 
   try {
-    const filters = sanitizeFilters({
+    // Get filter values
+    var filters = window.sanitizeFilters({
       service_type: document.getElementById("filterServiceType").value,
       is_free: document.getElementById("filterIsFree").value,
       hospital_name: document.getElementById("filterHospitalName").value,
     })
 
-    const queryString = new URLSearchParams(filters).toString()
-    const uri = queryString ? `${ENDPOINTS.HEALTH_SERVICES}?${queryString}` : ENDPOINTS.HEALTH_SERVICES
+    // Build query string
+    var endpoint = window.ENDPOINTS.HEALTH_SERVICES
+    var queryParams = new URLSearchParams(filters).toString()
+    if (queryParams) {
+      endpoint += "?" + queryParams
+    }
 
-    const response = await wellbeingApi.get(uri)
+    // Fetch data
+    var response = await wellbeingApi.get(endpoint)
 
-    // Store data for pagination - handle response structure
-    healthServicesData = response.data || response || []
+    // Handle response - check for data in health_services or data property
+    healthServicesData = response.health_services || response.data || response || []
 
-    // Setup pagination
+    // Set pagination
     healthServicesPagination.setTotalItems(healthServicesData.length)
     healthServicesPagination.currentPage = 1
 
+    // Render table
     renderHealthServicesTable()
-    healthServicesPagination.render("healthServicesPagination")
   } catch (error) {
-    handleError(error, "healthServicesAlert")
-    tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Failed to load data</td></tr>`
+    console.error("Error fetching health services:", error)
+    if (error instanceof window.CustomError) {
+      window.showAlert("healthServicesAlert", "Error " + error.status + ": " + error.message, "danger")
+    } else if (error instanceof window.NetworkError) {
+      window.showAlert("healthServicesAlert", error.message, "danger")
+    } else {
+      window.showAlert("healthServicesAlert", "An unexpected error occurred while fetching health services.", "danger")
+    }
+    window.showEmptyState("healthServicesTableBody", "Failed to load health services.", 6)
   }
 }
 
 /**
  * Renders the health services table with current page data
- * Displays Health_ServicesID, hospital_name, service_type, is_free, and requirements
  */
 function renderHealthServicesTable() {
-  const tableBody = document.getElementById("healthServicesTableBody")
-  const pageData = healthServicesPagination.getPageData(healthServicesData)
+  var tableBody = document.getElementById("healthServicesTableBody")
 
-  if (pageData.length === 0) {
-    tableBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center py-5 text-muted">
-                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                    No health services found
-                </td>
-            </tr>
-        `
+  if (!healthServicesData || healthServicesData.length === 0) {
+    window.showEmptyState("healthServicesTableBody", "No health services found.", 6)
+    window.clearContainer("healthServicesPagination")
     return
   }
 
-  tableBody.innerHTML = pageData
-    .map(
-      (service) => `
-        <tr>
-            <td>${escapeHtml(String(service.Health_ServicesID))}</td>
-            <td>${escapeHtml(service.hospital_name)}</td>
-            <td><span class="badge bg-primary badge-category">${escapeHtml(service.service_type)}</span></td>
-            <td><span class="badge ${service.is_free == 1 ? "bg-success" : "bg-warning"}">${service.is_free == 1 ? "Free" : "Paid"}</span></td>
-            <td>${escapeHtml(service.requirements || "N/A")}</td>
-            <td class="action-column">
-                <button class="btn btn-sm btn-outline-primary me-1" onclick="viewHealthService(${service.Health_ServicesID})" title="View">
-                    <i class="bi bi-eye"></i>
-                </button>
-                <button class="btn btn-sm btn-delete" onclick="showDeleteModal(${service.Health_ServicesID})" title="Delete">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </td>
-        </tr>
-    `,
-    )
-    .join("")
+  // Get current page data
+  var pageData = healthServicesPagination.getPageData(healthServicesData)
 
+  var html = ""
+  pageData.forEach((service) => {
+    var isFree = service.is_free == 1 || service.is_free === true
+    var serviceId = service.Health_ServicesID || service.id
+    html +=
+      "<tr>" +
+      "<td>" +
+      window.escapeHtml(serviceId) +
+      "</td>" +
+      "<td>" +
+      window.escapeHtml(service.hospital_name) +
+      "</td>" +
+      '<td><span class="badge bg-secondary">' +
+      window.escapeHtml(service.service_type) +
+      "</span></td>" +
+      '<td><span class="badge ' +
+      (isFree ? "bg-success" : "bg-warning text-dark") +
+      '">' +
+      (isFree ? "Free" : "Paid") +
+      "</span></td>" +
+      "<td>" +
+      window.escapeHtml(service.requirements || "-") +
+      "</td>" +
+      '<td class="action-column">' +
+      '<button class="btn btn-sm btn-outline-info me-1" onclick="viewHealthService(' +
+      serviceId +
+      ')" title="View">' +
+      '<i class="bi bi-eye"></i></button>' +
+      '<button class="btn btn-sm btn-outline-danger" onclick="confirmDelete(' +
+      serviceId +
+      ')" title="Delete">' +
+      '<i class="bi bi-trash"></i></button>' +
+      "</td></tr>"
+  })
+
+  tableBody.innerHTML = html
+
+  // Render pagination
   healthServicesPagination.render("healthServicesPagination")
 }
 
 /**
- * Creates a new health service by sending POST request to the API
- * Validates form data before submission
+ * Creates a new health service
  * @async
  */
 async function createHealthService() {
-  hideAlert("createModalAlert")
+  window.hideAlert("createModalAlert")
 
-  const formData = {
+  // Get form data
+  var data = {
     hospital_name: document.getElementById("createHospitalName").value,
     service_type: document.getElementById("createServiceType").value,
-    is_free: Number.parseInt(document.getElementById("createIsFree").value),
+    is_free: document.getElementById("createIsFree").value,
     requirements: document.getElementById("createRequirements").value,
   }
 
-  // Validate form data
-  const validation = validateHealthService(formData)
+  // Validate
+  var validation = window.validateHealthService(data)
   if (!validation.isValid) {
-    showErrorList("createModalAlert", validation.errors)
+    window.showErrorList("createModalAlert", validation.errors)
     return
   }
 
   try {
-    const response = await wellbeingApi.post(ENDPOINTS.HEALTH_SERVICES, formData)
+    // Send POST request
+    var response = await wellbeingApi.post(window.ENDPOINTS.HEALTH_SERVICES, data)
 
-    // Close modal and show success
-    const modal = bootstrap.Modal.getInstance(document.getElementById("createHealthServiceModal"))
+    // Close modal
+    var modal = window.bootstrap.Modal.getInstance(document.getElementById("createHealthServiceModal"))
     modal.hide()
 
     // Reset form
     document.getElementById("createHealthServiceForm").reset()
 
-    showAlert(
-      "healthServicesAlert",
-      '<i class="bi bi-check-circle me-2"></i>Health service created successfully!',
-      "success",
-    )
+    // Show success message
+    window.showAlert("healthServicesAlert", "Health service created successfully!", "success")
 
-    // Refresh the table
+    // Refresh table
     await fetchHealthServices()
   } catch (error) {
-    handleError(error, "createModalAlert")
+    console.error("Error creating health service:", error)
+    if (error instanceof window.CustomError) {
+      window.showAlert("createModalAlert", "Error " + error.status + ": " + error.message, "danger")
+    } else if (error instanceof window.NetworkError) {
+      window.showAlert("createModalAlert", error.message, "danger")
+    } else {
+      window.showAlert("createModalAlert", "An unexpected error occurred.", "danger")
+    }
   }
 }
 
 /**
- * Deletes a health service by sending DELETE request to the API
- * @async
- * @param {number} serviceId - The ID of the service to delete
+ * Opens the delete confirmation modal
+ * @param {number} id - The ID of the health service to delete
  */
-async function deleteHealthService(serviceId) {
-  try {
-    await wellbeingApi.delete(`${ENDPOINTS.HEALTH_SERVICES}/${serviceId}`)
-
-    // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById("deleteConfirmModal"))
-    modal.hide()
-
-    showAlert(
-      "healthServicesAlert",
-      '<i class="bi bi-check-circle me-2"></i>Health service deleted successfully!',
-      "success",
-    )
-
-    // Refresh the table
-    await fetchHealthServices()
-  } catch (error) {
-    // Close modal first
-    const modal = bootstrap.Modal.getInstance(document.getElementById("deleteConfirmModal"))
-    modal.hide()
-
-    handleError(error, "healthServicesAlert")
-  }
-}
-
-/**
- * Shows the delete confirmation modal
- * @param {number} serviceId - The ID of the service to delete
- */
-window.showDeleteModal = (serviceId) => {
-  document.getElementById("deleteServiceId").value = serviceId
-  const modal = new bootstrap.Modal(document.getElementById("deleteConfirmModal"))
+function confirmDelete(id) {
+  document.getElementById("deleteServiceId").value = id
+  var modal = new window.bootstrap.Modal(document.getElementById("deleteConfirmModal"))
   modal.show()
 }
 
 /**
- * Views a health service details in a modal
- * Fetches single service data and displays all fields
- * @param {number} serviceId - The ID of the service to view
- */
-window.viewHealthService = async (serviceId) => {
-  const modalBody = document.getElementById("viewHealthServiceBody")
-  modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border"></div></div>'
-
-  const modal = new bootstrap.Modal(document.getElementById("viewHealthServiceModal"))
-  modal.show()
-
-  try {
-    const response = await wellbeingApi.get(`${ENDPOINTS.HEALTH_SERVICES}/${serviceId}`)
-    const service = response.data || response
-
-    modalBody.innerHTML = `
-            <dl class="row mb-0">
-                <dt class="col-sm-4">ID</dt>
-                <dd class="col-sm-8">${escapeHtml(String(service.Health_ServicesID))}</dd>
-
-                <dt class="col-sm-4">Hospital Name</dt>
-                <dd class="col-sm-8">${escapeHtml(service.hospital_name)}</dd>
-
-                <dt class="col-sm-4">Service Type</dt>
-                <dd class="col-sm-8"><span class="badge bg-primary">${escapeHtml(service.service_type)}</span></dd>
-
-                <dt class="col-sm-4">Cost</dt>
-                <dd class="col-sm-8"><span class="badge ${service.is_free == 1 ? "bg-success" : "bg-warning"}">${service.is_free == 1 ? "Free" : "Paid"}</span></dd>
-
-                <dt class="col-sm-4">Requirements</dt>
-                <dd class="col-sm-8">${escapeHtml(service.requirements || "N/A")}</dd>
-            </dl>
-        `
-  } catch (error) {
-    modalBody.innerHTML = `<div class="alert alert-danger mb-0">Failed to load service details</div>`
-  }
-}
-
-// =============================================
-// VENDOR SWITCHES SECTION (Sub-collection)
-// =============================================
-
-/**
- * Initializes the Vendor Switches section event listeners
- */
-function initVendorSwitchesSection() {
-  document.getElementById("vendorSwitchesForm").addEventListener("submit", async (e) => {
-    e.preventDefault()
-    await fetchVendorSwitches()
-  })
-}
-
-/**
- * Fetches switches for a specific vendor from the API
- * Endpoint: GET /vendors/{vendor_id}/switches
- * Response structure: { vendor: {...}, meta: {...}, switches: [...] }
+ * Deletes a health service
  * @async
  */
-async function fetchVendorSwitches() {
-  const vendorId = document.getElementById("vendorId").value
-  const tableBody = document.getElementById("vendorSwitchesTableBody")
-  const vendorInfoContainer = document.getElementById("vendorInfoContainer")
+async function deleteHealthService() {
+  var id = document.getElementById("deleteServiceId").value
 
-  hideAlert("vendorSwitchesAlert")
-
-  // Validate vendor ID
-  const validation = validateId(vendorId, "Vendor ID")
+  // Validate ID
+  var validation = window.validateId(id, "Service ID")
   if (!validation.isValid) {
-    showErrorList("vendorSwitchesAlert", validation.errors)
+    window.showAlert("healthServicesAlert", validation.errors[0], "danger")
     return
   }
 
-  showLoading("vendorSwitchesTableBody", "Loading switches...")
+  try {
+    // Send DELETE request
+    await wellbeingApi.delete(window.ENDPOINTS.HEALTH_SERVICES + "/" + id)
+
+    // Close modal
+    var modal = window.bootstrap.Modal.getInstance(document.getElementById("deleteConfirmModal"))
+    modal.hide()
+
+    // Show success message
+    window.showAlert("healthServicesAlert", "Health service deleted successfully!", "success")
+
+    // Refresh table
+    await fetchHealthServices()
+  } catch (error) {
+    console.error("Error deleting health service:", error)
+
+    // Close modal first
+    var modalInstance = window.bootstrap.Modal.getInstance(document.getElementById("deleteConfirmModal"))
+    modalInstance.hide()
+
+    if (error instanceof window.CustomError) {
+      window.showAlert("healthServicesAlert", "Error " + error.status + ": " + error.message, "danger")
+    } else if (error instanceof window.NetworkError) {
+      window.showAlert("healthServicesAlert", error.message, "danger")
+    } else {
+      window.showAlert("healthServicesAlert", "An unexpected error occurred while deleting.", "danger")
+    }
+  }
+}
+
+/**
+ * Views a single health service details
+ * @async
+ * @param {number} id - The ID of the health service to view
+ */
+async function viewHealthService(id) {
+  try {
+    var response = await wellbeingApi.get(window.ENDPOINTS.HEALTH_SERVICES + "/" + id)
+    var service = response.health_service || response.data || response
+
+    var isFree = service.is_free == 1 || service.is_free === true
+    var modalBody = document.getElementById("viewHealthServiceBody")
+    modalBody.innerHTML =
+      '<div class="row">' +
+      '<div class="col-md-6 mb-3"><strong>ID:</strong><br>' +
+      window.escapeHtml(service.Health_ServicesID || service.id) +
+      "</div>" +
+      '<div class="col-md-6 mb-3"><strong>Hospital Name:</strong><br>' +
+      window.escapeHtml(service.hospital_name) +
+      "</div>" +
+      '<div class="col-md-6 mb-3"><strong>Service Type:</strong><br>' +
+      '<span class="badge bg-secondary">' +
+      window.escapeHtml(service.service_type) +
+      "</span></div>" +
+      '<div class="col-md-6 mb-3"><strong>Cost:</strong><br>' +
+      '<span class="badge ' +
+      (isFree ? "bg-success" : "bg-warning text-dark") +
+      '">' +
+      (isFree ? "Free" : "Paid") +
+      "</span></div>" +
+      '<div class="col-12 mb-3"><strong>Requirements:</strong><br>' +
+      window.escapeHtml(service.requirements || "None specified") +
+      "</div>" +
+      "</div>"
+
+    var modal = new window.bootstrap.Modal(document.getElementById("viewHealthServiceModal"))
+    modal.show()
+  } catch (error) {
+    console.error("Error viewing health service:", error)
+    if (error instanceof window.CustomError) {
+      window.showAlert("healthServicesAlert", "Error " + error.status + ": " + error.message, "danger")
+    } else {
+      window.showAlert("healthServicesAlert", "Failed to load health service details.", "danger")
+    }
+  }
+}
+
+// ============================================================================
+// VENDOR SWITCHES (Sub-collection)
+// ============================================================================
+
+/**
+ * Initializes event handlers for Vendor Switches section
+ */
+function initializeVendorSwitchesHandlers() {
+  var form = document.getElementById("vendorSwitchesForm")
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault()
+      fetchVendorSwitches()
+    })
+  }
+}
+
+/**
+ * Fetches switches for a specific vendor
+ * @async
+ */
+async function fetchVendorSwitches() {
+  var vendorId = document.getElementById("vendorId").value
+  window.hideAlert("vendorSwitchesAlert")
+
+  // Validate vendor ID
+  var validation = window.validateId(vendorId, "Vendor ID")
+  if (!validation.isValid) {
+    window.showErrorList("vendorSwitchesAlert", validation.errors)
+    return
+  }
+
+  window.showLoading("vendorSwitchesTableBody", "Loading switches...")
+  window.clearContainer("vendorInfoContainer")
 
   try {
-    const response = await hw1Api.get(`${ENDPOINTS.VENDORS}/${vendorId}${ENDPOINTS.SWITCHES}`)
-
-    const vendorData = response.vendor || null
-    vendorSwitchesData = response.switches || response.data || []
+    // Fetch switches for the vendor - using /vendors/{id}/switches
+    var endpoint = window.ENDPOINTS.VENDORS + "/" + vendorId + window.ENDPOINTS.SWITCHES
+    var response = await hw1Api.get(endpoint)
 
     // Display vendor info if available
-    if (vendorData) {
-      renderVendorInfo(vendorData)
+    if (response.vendor) {
+      renderVendorInfo(response.vendor)
     }
 
-    // Setup pagination using response meta or data length
-    const totalItems = response.meta?.total_count || vendorSwitchesData.length
-    vendorSwitchesPagination.setTotalItems(totalItems)
+    // Get switches array from response
+    vendorSwitchesData = response.switches || response.data || response || []
+
+    // Set pagination
+    vendorSwitchesPagination.setTotalItems(vendorSwitchesData.length)
     vendorSwitchesPagination.currentPage = 1
 
+    // Render table
     renderVendorSwitchesTable()
-    vendorSwitchesPagination.render("vendorSwitchesPagination")
   } catch (error) {
-    handleError(error, "vendorSwitchesAlert")
-    tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Failed to load data</td></tr>`
-    clearContainer("vendorSwitchesPagination")
-    clearContainer("vendorInfoContainer")
+    console.error("Error fetching vendor switches:", error)
+    if (error instanceof window.CustomError) {
+      window.showAlert("vendorSwitchesAlert", "Error " + error.status + ": " + error.message, "danger")
+    } else if (error instanceof window.NetworkError) {
+      window.showAlert("vendorSwitchesAlert", error.message, "danger")
+    } else {
+      window.showAlert("vendorSwitchesAlert", "An unexpected error occurred while fetching switches.", "danger")
+    }
+    window.showEmptyState("vendorSwitchesTableBody", "Failed to load switches.", 7)
   }
 }
 
 /**
  * Renders vendor information card
- * @param {Object} vendor - The vendor data object
+ * @param {Object} vendor - The vendor data
  */
 function renderVendorInfo(vendor) {
-  const container = document.getElementById("vendorInfoContainer")
-  container.innerHTML = `
-    <div class="alert alert-info">
-      <h6 class="alert-heading mb-2"><i class="bi bi-building me-2"></i>Vendor Information</h6>
-      <div class="row">
-        <div class="col-md-4"><strong>ID:</strong> ${escapeHtml(String(vendor.vendor_id))}</div>
-        <div class="col-md-4"><strong>Name:</strong> ${escapeHtml(vendor.name)}</div>
-        <div class="col-md-4"><strong>Country:</strong> ${escapeHtml(vendor.country || "N/A")}</div>
-      </div>
-    </div>
-  `
+  var container = document.getElementById("vendorInfoContainer")
+  container.innerHTML =
+    '<div class="card bg-light">' +
+    '<div class="card-body">' +
+    '<h5 class="card-title"><i class="bi bi-building me-2"></i>Vendor Information</h5>' +
+    '<div class="row">' +
+    '<div class="col-md-4"><strong>ID:</strong> ' +
+    window.escapeHtml(vendor.vendor_id || vendor.id) +
+    "</div>" +
+    '<div class="col-md-4"><strong>Name:</strong> ' +
+    window.escapeHtml(vendor.vendor_name || vendor.name) +
+    "</div>" +
+    '<div class="col-md-4"><strong>Country:</strong> ' +
+    window.escapeHtml(vendor.country || "-") +
+    "</div>" +
+    "</div>" +
+    "</div>" +
+    "</div>"
 }
 
 /**
  * Renders the vendor switches table with current page data
- * Switch fields: switch_id, name, type, actuation_force, total_travel, lifespan_million, release_date
  */
 function renderVendorSwitchesTable() {
-  const tableBody = document.getElementById("vendorSwitchesTableBody")
-  const pageData = vendorSwitchesPagination.getPageData(vendorSwitchesData)
+  var tableBody = document.getElementById("vendorSwitchesTableBody")
 
-  if (pageData.length === 0) {
-    tableBody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center py-5 text-muted">
-                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                    No switches found for this vendor
-                </td>
-            </tr>
-        `
+  if (!vendorSwitchesData || vendorSwitchesData.length === 0) {
+    window.showEmptyState("vendorSwitchesTableBody", "No switches found for this vendor.", 7)
+    window.clearContainer("vendorSwitchesPagination")
     return
   }
 
-  tableBody.innerHTML = pageData
-    .map(
-      (sw) => `
-        <tr>
-            <td>${escapeHtml(String(sw.switch_id))}</td>
-            <td>${escapeHtml(sw.name)}</td>
-            <td><span class="badge bg-secondary">${escapeHtml(sw.type || "N/A")}</span></td>
-            <td>${escapeHtml(String(sw.actuation_force || "N/A"))}g</td>
-            <td>${escapeHtml(String(sw.total_travel || "N/A"))}mm</td>
-            <td>${escapeHtml(String(sw.lifespan_million || "N/A"))}M</td>
-            <td>${escapeHtml(sw.release_date || "N/A")}</td>
-        </tr>
-    `,
-    )
-    .join("")
+  // Get current page data
+  var pageData = vendorSwitchesPagination.getPageData(vendorSwitchesData)
+
+  var html = ""
+  pageData.forEach((switchItem) => {
+    html +=
+      "<tr>" +
+      "<td>" +
+      window.escapeHtml(switchItem.switch_id || switchItem.id) +
+      "</td>" +
+      "<td>" +
+      window.escapeHtml(switchItem.name || switchItem.switch_name) +
+      "</td>" +
+      '<td><span class="badge bg-info">' +
+      window.escapeHtml(switchItem.type || switchItem.switch_type || "-") +
+      "</span></td>" +
+      "<td>" +
+      window.escapeHtml(switchItem.actuation_force || "-") +
+      "g</td>" +
+      "<td>" +
+      window.escapeHtml(switchItem.total_travel || "-") +
+      "mm</td>" +
+      "<td>" +
+      window.escapeHtml(switchItem.lifespan_million || "-") +
+      "M</td>" +
+      "<td>" +
+      window.escapeHtml(switchItem.release_date || "-") +
+      "</td>" +
+      "</tr>"
+  })
+
+  tableBody.innerHTML = html
+
+  // Render pagination
   vendorSwitchesPagination.render("vendorSwitchesPagination")
 }
 
-// =============================================
-// SPORTS DB SECTION (External API)
-// =============================================
+// ============================================================================
+// THESPORTSDB (External API)
+// ============================================================================
 
 /**
- * Initializes the TheSportsDB section event listeners
+ * Initializes event handlers for TheSportsDB section
  */
-function initSportsDbSection() {
-  document.getElementById("sportsDbForm").addEventListener("submit", async (e) => {
-    e.preventDefault()
-    await fetchSportsDbLeagues()
-  })
+function initializeSportsDbHandlers() {
+  var form = document.getElementById("sportsDbForm")
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault()
+      fetchSportsDbLeagues()
+    })
+  }
 }
 
 /**
  * Fetches leagues from TheSportsDB API
- * Filters by sport (s) and country (c) parameters
- * URL: https://www.thesportsdb.com/api/v1/json/3/search_all_leagues.php?s=soccer&c=France
+ * Uses the search_all_leagues.php endpoint with s (sport) and c (country) filters
  * @async
  */
 async function fetchSportsDbLeagues() {
-  const sport = document.getElementById("sportFilter").value
-  const country = document.getElementById("countryFilter").value
-  const resultsContainer = document.getElementById("sportsDbResults")
+  var sport = document.getElementById("sportFilter").value
+  var country = document.getElementById("countryFilter").value
+  window.hideAlert("sportsDbAlert")
 
-  hideAlert("sportsDbAlert")
-
-  // Validate inputs
-  const validation = validateSportsDbParams({ sport, country })
+  // Validate - at least one filter required
+  var validation = window.validateSportsDbParams({ sport: sport, country: country })
   if (!validation.isValid) {
-    showErrorList("sportsDbAlert", validation.errors)
+    window.showErrorList("sportsDbAlert", validation.errors)
     return
   }
 
-  resultsContainer.innerHTML = `
-        <div class="col-12 text-center py-5">
-            <div class="spinner-border text-primary"></div>
-            <p class="mt-2">Searching leagues...</p>
-        </div>
-    `
+  var resultsContainer = document.getElementById("sportsDbResults")
+  resultsContainer.innerHTML =
+    '<div class="col-12 text-center py-5">' +
+    '<div class="spinner-border text-primary" role="status">' +
+    '<span class="visually-hidden">Loading...</span>' +
+    "</div>" +
+    '<p class="mt-2 text-muted">Searching leagues...</p>' +
+    "</div>"
 
   try {
-    const params = new URLSearchParams()
+    // Build URL with query parameters
+    var params = new URLSearchParams()
     if (sport) params.append("s", sport)
     if (country) params.append("c", country)
 
-    const fullUrl = `${CONFIG.SPORTS_DB_API_URL}?${params.toString()}`
+    var url = window.CONFIG.SPORTS_DB_API_URL + "?" + params.toString()
 
-    // Make direct fetch call since it's external API
-    const response = await fetch(fullUrl)
+    // Make direct fetch call for external API
+    var response = await fetch(url)
+
     if (!response.ok) {
-      throw new CustomError(`HTTP error! Status: ${response.status}`, response.status)
-    }
-    const data = await response.json()
-
-    const leagues = data.countries || []
-
-    if (leagues.length === 0) {
-      resultsContainer.innerHTML = `
-                <div class="col-12 text-center py-5 text-muted">
-                    <i class="bi bi-search fs-1"></i>
-                    <p class="mt-2">No leagues found for the selected criteria</p>
-                </div>
-            `
-      return
+      throw new window.CustomError(response.status, response.statusText, "Failed to fetch from TheSportsDB")
     }
 
-    renderSportsDbResults(leagues)
+    var data = await response.json()
+
+    // Render results - response contains 'countries' array (which are actually leagues)
+    renderSportsDbResults(data.countries || [])
   } catch (error) {
-    handleError(error, "sportsDbAlert")
-    resultsContainer.innerHTML = `
-            <div class="col-12 text-center py-5 text-danger">
-                <i class="bi bi-exclamation-circle fs-1"></i>
-                <p class="mt-2">Failed to load leagues</p>
-            </div>
-        `
+    console.error("Error fetching from TheSportsDB:", error)
+    if (error instanceof window.CustomError) {
+      window.showAlert("sportsDbAlert", "Error " + error.status + ": " + error.message, "danger")
+    } else {
+      window.showAlert("sportsDbAlert", "Failed to fetch leagues from TheSportsDB. Please try again.", "danger")
+    }
+    resultsContainer.innerHTML =
+      '<div class="col-12 text-center py-5 text-muted">' +
+      '<i class="bi bi-exclamation-triangle fs-1"></i>' +
+      '<p class="mt-2">Failed to load leagues</p>' +
+      "</div>"
   }
 }
 
 /**
- * Renders the TheSportsDB league results as cards
- * League fields: idLeague, strLeague, strSport, strCountry, strBadge, strDescriptionEN, strWebsite
- * @param {Array} leagues - Array of league objects from TheSportsDB API
+ * Renders TheSportsDB league results
+ * @param {Array} leagues - Array of league objects from the API
  */
 function renderSportsDbResults(leagues) {
-  const resultsContainer = document.getElementById("sportsDbResults")
+  var container = document.getElementById("sportsDbResults")
 
-  resultsContainer.innerHTML = leagues
-    .map(
-      (league) => `
-        <div class="col-md-6 col-lg-4">
-            <div class="card league-card h-100">
-                <div class="card-body text-center">
-                    ${
-                      league.strBadge
-                        ? `<img src="${escapeHtml(league.strBadge)}" alt="${escapeHtml(league.strLeague)}" class="img-fluid mb-3" style="max-height: 80px;">`
-                        : `<i class="bi bi-trophy fs-1 text-muted mb-3"></i>`
-                    }
-                    <h5 class="card-title">${escapeHtml(league.strLeague)}</h5>
-                    <p class="card-text">
-                        <span class="badge bg-primary me-1">${escapeHtml(league.strSport || "N/A")}</span>
-                        <span class="badge bg-secondary">${escapeHtml(league.strCountry || "N/A")}</span>
-                    </p>
-                    ${league.intFormedYear ? `<p class="card-text small"><strong>Founded:</strong> ${escapeHtml(league.intFormedYear)}</p>` : ""}
-                    ${
-                      league.strDescriptionEN
-                        ? `<p class="card-text small text-muted">${escapeHtml(league.strDescriptionEN.substring(0, 150))}...</p>`
-                        : ""
-                    }
-                </div>
-                ${
-                  league.strWebsite
-                    ? `<div class="card-footer bg-transparent">
-                        <a href="https://${escapeHtml(league.strWebsite)}" target="_blank" class="btn btn-sm btn-outline-primary w-100">
-                            <i class="bi bi-globe me-1"></i>Visit Website
-                        </a>
-                    </div>`
-                    : ""
-                }
-            </div>
-        </div>
-    `,
-    )
-    .join("")
-}
-
-// =============================================
-// ERROR HANDLING
-// =============================================
-
-/**
- * Handles errors and displays appropriate messages in Bootstrap alerts
- * Supports CustomError, NetworkError, ValidationError, and generic errors
- * @param {Error} error - The error object
- * @param {string} alertContainerId - The ID of the alert container element
- */
-function handleError(error, alertContainerId) {
-  console.error("Error:", error)
-
-  if (error instanceof ValidationError) {
-    showErrorList(alertContainerId, error.errors)
-  } else if (error instanceof CustomError) {
-    showAlert(
-      alertContainerId,
-      `<i class="bi bi-exclamation-circle me-2"></i>${error.message} (Status: ${error.status})`,
-      "danger",
-    )
-  } else if (error instanceof NetworkError) {
-    showAlert(alertContainerId, `<i class="bi bi-wifi-off me-2"></i>${error.message}`, "danger")
-  } else {
-    showAlert(
-      alertContainerId,
-      `<i class="bi bi-exclamation-circle me-2"></i>An unexpected error occurred: ${error.message}`,
-      "danger",
-    )
+  if (!leagues || leagues.length === 0) {
+    container.innerHTML =
+      '<div class="col-12 text-center py-5 text-muted">' +
+      '<i class="bi bi-search fs-1"></i>' +
+      '<p class="mt-2">No leagues found matching your criteria</p>' +
+      "</div>"
+    return
   }
+
+  var html = ""
+  leagues.forEach((league) => {
+    html +=
+      '<div class="col-md-6 col-lg-4">' +
+      '<div class="card h-100">' +
+      '<div class="card-body">' +
+      '<h5 class="card-title">' +
+      window.escapeHtml(league.strLeague) +
+      "</h5>" +
+      '<p class="card-text">' +
+      '<span class="badge bg-primary me-1">' +
+      window.escapeHtml(league.strSport) +
+      "</span>" +
+      '<span class="badge bg-secondary">' +
+      window.escapeHtml(league.strCountry) +
+      "</span>" +
+      "</p>" +
+      (league.strLeagueAlternate
+        ? '<p class="text-muted small mb-0">Also known as: ' + window.escapeHtml(league.strLeagueAlternate) + "</p>"
+        : "") +
+      "</div>" +
+      "</div>" +
+      "</div>"
+  })
+
+  container.innerHTML = html
 }
+
+// Expose functions globally for onclick handlers
+window.viewHealthService = viewHealthService
+window.confirmDelete = confirmDelete

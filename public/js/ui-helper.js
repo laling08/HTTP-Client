@@ -10,11 +10,12 @@
  * @param {string} message - The message to display
  * @param {string} type - The alert type ('success', 'danger', 'warning', 'info')
  */
-export function showAlert(containerId, message, type = "danger") {
-  const container = document.getElementById(containerId)
+function showAlert(containerId, message, type) {
+  type = type || "danger"
+  var container = document.getElementById(containerId)
   if (!container) return
 
-  container.className = `alert alert-${type}`
+  container.className = "alert alert-" + type
   container.innerHTML = message
   container.classList.remove("d-none")
 
@@ -31,13 +32,13 @@ export function showAlert(containerId, message, type = "danger") {
  * @param {string} containerId - The ID of the alert container element
  * @param {Array<string>} errors - Array of error messages
  */
-export function showErrorList(containerId, errors) {
-  const container = document.getElementById(containerId)
+function showErrorList(containerId, errors) {
+  var container = document.getElementById(containerId)
   if (!container) return
 
-  let html = '<strong>Please fix the following errors:</strong><ul class="mb-0 mt-2">'
+  var html = '<strong>Please fix the following errors:</strong><ul class="mb-0 mt-2">'
   errors.forEach((error) => {
-    html += `<li>${error}</li>`
+    html += "<li>" + error + "</li>"
   })
   html += "</ul>"
 
@@ -50,8 +51,8 @@ export function showErrorList(containerId, errors) {
  * Hides the specified alert container
  * @param {string} containerId - The ID of the alert container element
  */
-export function hideAlert(containerId) {
-  const container = document.getElementById(containerId)
+function hideAlert(containerId) {
+  var container = document.getElementById(containerId)
   if (container) {
     container.classList.add("d-none")
     container.innerHTML = ""
@@ -63,43 +64,55 @@ export function hideAlert(containerId) {
  * @param {string} containerId - The ID of the container element
  * @param {string} message - Optional loading message
  */
-export function showLoading(containerId, message = "Loading...") {
-  const container = document.getElementById(containerId)
+function showLoading(containerId, message) {
+  message = message || "Loading..."
+  var container = document.getElementById(containerId)
   if (!container) return
 
-  container.innerHTML = `
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="mt-2 text-muted">${message}</p>
-        </div>
-    `
+  container.innerHTML =
+    "<tr>" +
+    '<td colspan="10" class="text-center py-5">' +
+    '<div class="spinner-border text-primary" role="status">' +
+    '<span class="visually-hidden">Loading...</span>' +
+    "</div>" +
+    '<p class="mt-2 text-muted">' +
+    message +
+    "</p>" +
+    "</td>" +
+    "</tr>"
 }
 
 /**
  * Shows an empty state message in the specified container
  * @param {string} containerId - The ID of the container element
  * @param {string} message - The message to display
+ * @param {number} colspan - Number of columns to span
  */
-export function showEmptyState(containerId, message = "No data found.") {
-  const container = document.getElementById(containerId)
+function showEmptyState(containerId, message, colspan) {
+  message = message || "No data found."
+  colspan = colspan || 6
+  var container = document.getElementById(containerId)
   if (!container) return
 
-  container.innerHTML = `
-        <div class="text-center py-5">
-            <i class="bi bi-inbox fs-1 text-muted"></i>
-            <p class="mt-2 text-muted">${message}</p>
-        </div>
-    `
+  container.innerHTML =
+    "<tr>" +
+    '<td colspan="' +
+    colspan +
+    '" class="text-center py-5">' +
+    '<i class="bi bi-inbox fs-1 text-muted"></i>' +
+    '<p class="mt-2 text-muted">' +
+    message +
+    "</p>" +
+    "</td>" +
+    "</tr>"
 }
 
 /**
  * Clears the content of a container
  * @param {string} containerId - The ID of the container element
  */
-export function clearContainer(containerId) {
-  const container = document.getElementById(containerId)
+function clearContainer(containerId) {
+  var container = document.getElementById(containerId)
   if (container) {
     container.innerHTML = ""
   }
@@ -110,9 +123,17 @@ export function clearContainer(containerId) {
  * @param {string} text - The text to escape
  * @returns {string} The escaped text
  */
-export function escapeHtml(text) {
+function escapeHtml(text) {
   if (text === null || text === undefined) return ""
-  const div = document.createElement("div")
+  var div = document.createElement("div")
   div.textContent = text
   return div.innerHTML
 }
+
+window.showAlert = showAlert
+window.showErrorList = showErrorList
+window.hideAlert = hideAlert
+window.showLoading = showLoading
+window.showEmptyState = showEmptyState
+window.clearContainer = clearContainer
+window.escapeHtml = escapeHtml

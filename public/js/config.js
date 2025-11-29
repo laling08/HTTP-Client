@@ -8,7 +8,7 @@
  * API Configuration object
  * @constant {Object} CONFIG
  */
-export const CONFIG = {
+var CONFIG = {
   WELLBEING_API_BASE_URL: "http://localhost/wellbeing-api",
   HW1_API_BASE_URL: "http://localhost/hw1",
   SPORTS_DB_API_URL: "https://www.thesportsdb.com/api/v1/json/3/search_all_leagues.php",
@@ -22,9 +22,11 @@ export const CONFIG = {
  * API Endpoints
  * @constant {Object} ENDPOINTS
  */
-export const ENDPOINTS = {
+var ENDPOINTS = {
   HEALTH_SERVICES: "/health_services",
   VENDORS: "/vendors",
   SWITCHES: "/switches",
-  SPORTS_DB_LEAGUES: "",
 }
+
+window.CONFIG = CONFIG
+window.ENDPOINTS = ENDPOINTS
