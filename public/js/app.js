@@ -3,10 +3,10 @@
  * @description Handles all UI interactions and API calls for Health Services,
  *              Vendor Switches, and TheSportsDB endpoints
  * @module App
- * @author Ishilia Gilcedes V. Labrador (2242125)
+ * @author Ishilia Gilcedes V.Labrador (2242125)
  */
 
-console.log("[YOSHO] app.js loading...");
+console.log("[hewo] app.js loading...");
 
 // Initialize FetchWrapper instances for each API
 var wellbeingApi = new window.FetchWrapper(
@@ -44,7 +44,7 @@ var bootstrap = window.bootstrap;
  * Initialize the application when DOM is loaded
  */
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("[YOI] Initializing application...");
+  console.log("[hewo] Initializing application...");
 
   var modals = document.querySelectorAll(".modal");
   modals.forEach((modal) => {
@@ -143,10 +143,13 @@ function initializeHealthServicesHandlers() {
 
 /**
  * Fetches health services from the API with optional filters
+ * Fetches ALL pages from server for client-side pagination
  * @async
+ * @function fetchHealthServices
+ * @returns {Promise<void>}
  */
 async function fetchHealthServices() {
-  console.log("[YOI] Fetching health services...");
+  console.log("[hewo] Fetching health services...");
   window.showLoading("healthServicesTableBody", "Loading health services...");
   window.hideAlert("healthServicesAlert");
 
@@ -158,31 +161,62 @@ async function fetchHealthServices() {
       hospital_name: document.getElementById("filterHospitalName").value,
     });
 
-    // Build query string
+    var allRecords = [];
+    var currentPage = 1;
+    var totalPages = 1;
+
+    // Fetch first page to get pagination info
     var endpoint = window.ENDPOINTS.HEALTH_SERVICES;
-    var queryParams = new URLSearchParams(filters).toString();
-    if (queryParams) {
-      endpoint += "?" + queryParams;
+    var queryParams = new URLSearchParams(filters);
+    queryParams.set("page", currentPage);
+    var firstPageEndpoint = endpoint + "?" + queryParams.toString();
+
+    console.log("[hewo] Fetching first page:", firstPageEndpoint);
+    var response = await wellbeingApi.get(firstPageEndpoint);
+    console.log("[hewo] First page response:", response);
+
+    // Extract data from response
+    if (response && response.data && Array.isArray(response.data)) {
+      allRecords = allRecords.concat(response.data);
     }
 
-    console.log("[YOI] Fetching from endpoint:", endpoint);
+    // Get total pages from pagination metadata
+    if (response && response.pagination) {
+      totalPages =
+        response.pagination.total_pages || response.pagination.last_page || 1;
+      console.log("[hewo] Total pages from API:", totalPages);
+    }
 
-    // Fetch data
-    var response = await wellbeingApi.get(endpoint);
-    console.log("[YOI] Response received:", response);
+    // Fetch remaining pages if there are more
+    for (var page = 2; page <= totalPages; page++) {
+      queryParams.set("page", page);
+      var pageEndpoint = endpoint + "?" + queryParams.toString();
+      console.log("[hewo] Fetching page " + page + ":", pageEndpoint);
 
-    // Handle response - check for data in health_services or data property
-    healthServicesData =
-      response.health_services || response.data || response || [];
+      var pageResponse = await wellbeingApi.get(pageEndpoint);
+      if (
+        pageResponse &&
+        pageResponse.data &&
+        Array.isArray(pageResponse.data)
+      ) {
+        allRecords = allRecords.concat(pageResponse.data);
+      }
+    }
 
-    // Set pagination
+    healthServicesData = allRecords;
+    console.log(
+      "[hewo] Total health services loaded:",
+      healthServicesData.length
+    );
+
+    // Set pagination with total items
     healthServicesPagination.setTotalItems(healthServicesData.length);
     healthServicesPagination.currentPage = 1;
 
     // Render table
     renderHealthServicesTable();
   } catch (error) {
-    console.error("[YOSHO] Error fetching health services:", error);
+    console.error("[hewo] Error fetching health services:", error);
     if (error instanceof window.CustomError) {
       window.showAlert(
         "healthServicesAlert",
@@ -315,7 +349,7 @@ async function createHealthService() {
     // Refresh table
     await fetchHealthServices();
   } catch (error) {
-    console.error("[YOI] Error creating health service:", error);
+    console.error("[hewo] Error creating health service:", error);
     if (error instanceof window.CustomError) {
       window.showAlert(
         "createModalAlert",
@@ -380,7 +414,7 @@ async function deleteHealthService() {
     // Refresh table
     await fetchHealthServices();
   } catch (error) {
-    console.error("[YOI] Error deleting health service:", error);
+    console.error("[hewo] Error deleting health service:", error);
 
     // Close modal first
     var modalInstance = bootstrap.Modal.getInstance(
@@ -446,7 +480,7 @@ async function viewHealthService(id) {
     );
     modal.show();
   } catch (error) {
-    console.error("[YOI] Error viewing health service:", error);
+    console.error("[hewo] Error viewing health service:", error);
     if (error instanceof window.CustomError) {
       window.showAlert(
         "healthServicesAlert",
@@ -502,10 +536,10 @@ async function fetchVendorSwitches() {
     // Fetch switches for the vendor - using /vendors/{id}/switches
     var endpoint =
       window.ENDPOINTS.VENDORS + "/" + vendorId + window.ENDPOINTS.SWITCHES;
-    console.log("[YOSHO:Fetching vendor switches from:", endpoint);
+    console.log("[hewo] Fetching vendor switches from:", endpoint);
 
     var response = await hw1Api.get(endpoint);
-    console.log("[YOI] Vendor switches response:", response);
+    console.log("[hewo] Vendor switches response:", response);
 
     // Display vendor info if available
     if (response.vendor) {
@@ -522,7 +556,7 @@ async function fetchVendorSwitches() {
     // Render table
     renderVendorSwitchesTable();
   } catch (error) {
-    console.error("[YOI] Error fetching vendor switches:", error);
+    console.error("[hewo] Error fetching vendor switches:", error);
     if (error instanceof window.CustomError) {
       window.showAlert(
         "vendorSwitchesAlert",
@@ -677,7 +711,7 @@ async function fetchSportsDbLeagues() {
     if (country) params.append("c", country);
 
     var url = window.CONFIG.SPORTS_DB_API_URL + "?" + params.toString();
-    console.log("[YOI] Fetching from TheSportsDB:", url);
+    console.log("[hewo] Fetching from TheSportsDB:", url);
 
     // Make direct fetch call for external API
     var response = await fetch(url);
@@ -691,12 +725,12 @@ async function fetchSportsDbLeagues() {
     }
 
     var data = await response.json();
-    console.log("[YOSHO] TheSportsDB response:", data);
+    console.log("[hewo] TheSportsDB response:", data);
 
     // Render results - response contains 'countries' array (which are actually leagues)
     renderSportsDbResults(data.countries || []);
   } catch (error) {
-    console.error("[YOI] Error fetching from TheSportsDB:", error);
+    console.error("[hewo] Error fetching from TheSportsDB:", error);
     if (error instanceof window.CustomError) {
       window.showAlert(
         "sportsDbAlert",
@@ -771,4 +805,4 @@ function renderSportsDbResults(leagues) {
 window.viewHealthService = viewHealthService;
 window.confirmDelete = confirmDelete;
 
-console.log("[YOI] app.js loaded successfully");
+console.log("[hewo] app.js loaded successfully");
