@@ -66,9 +66,11 @@ class FetchWrapper {
   /**
    * Creates a new FetchWrapper instance
    * @param {string} baseUrl - The base URL for all requests
+   * @param {Object} defaultHeaders - Default headers to include in all requests
    */
-  constructor(baseUrl = "") {
+  constructor(baseUrl = "", defaultHeaders = {}) {
     this.baseUrl = baseUrl
+    this.defaultHeaders = defaultHeaders
   }
 
   /**
@@ -87,6 +89,7 @@ class FetchWrapper {
     const defaultHeaders = {
       "Content-Type": "application/json",
       Accept: "application/json",
+      ...this.defaultHeaders,
     }
 
     // Merge default headers with provided headers
